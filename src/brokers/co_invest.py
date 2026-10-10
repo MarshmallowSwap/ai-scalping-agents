@@ -12,6 +12,11 @@ from contextlib import AsyncExitStack
 from typing import Any
 
 from mcp import ClientSession, StdioServerParameters
+from src.tools.safety import (
+    assert_paper_mode,
+    assert_status_pending,
+    log_execution_attempt,
+)
 from mcp.client.stdio import stdio_client
 
 logger = logging.getLogger(__name__)
@@ -139,20 +144,30 @@ class CoInvestClient:
         suggestion: dict[str, Any],
         idempotency_key: str | None = None,
     ) -> Any:
-        """Esegue un oggetto di proposta restituito da suggest_trade.
+        """Esegue una proposta SOLO dopo i controlli di sicurezza.
 
-        Mappa i campi come richiesto da execute_order: solo i campi esecutivi,
-        escluse le proprieta' di sola visualizzazione (sizeBasis, displayName, ecc.).
+        Guardrail:
+          - executionMode deve essere 'paper' (o 'live' con sentinella armata)
+          - status della proposta deve essere 'pending_confirmation'
+          - ogni tentativo viene loggato con fingerprint
         """
         order = suggestion.get("order") if isinstance(suggestion, dict) and "order" in suggestion else suggestion
         if not isinstance(order, dict):
             raise CoInvestError(f"Formato suggestion non riconosciuto: {suggestion!r}")
 
+        # SAFETY: guardrail
+        execution_mode = suggestion.get("executionMode", "paper")
+        assert_status_pending(suggestion)
+        assert_paper_mode(execution_mode)
+
         side = order.get("side")
         side_exec = "buy" if side == "long" else "sell" if side == "short" else side
 
+        idem = idempotency_key or str(uuid.uuid4())
+        log_execution_attempt(suggestion, idem)
+
         args: dict[str, Any] = {
-            "executionMode": suggestion.get("executionMode", "paper"),
+            "executionMode": execution_mode,
             "symbol": order.get("asset"),
             "side": side_exec,
             "size": order.get("size"),
@@ -160,7 +175,7 @@ class CoInvestClient:
             "leverage": order.get("leverage"),
             "reasoning": order.get("reasoning", ""),
             "confirmed": True,
-            "idempotencyKey": idempotency_key or str(uuid.uuid4()),
+            "idempotencyKey": idem,
         }
         if order.get("requestedLeverage") is not None:
             args["requestedLeverage"] = order["requestedLeverage"]
