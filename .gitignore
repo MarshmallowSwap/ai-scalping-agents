@@ -1,0 +1,30 @@
+﻿# Ambiente virtuale
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Segreti
+.env
+*.key
+*.pem
+
+# Dati
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Modelli addestrati
+models/
+*.zip
+*.pkl
+
+# IDE
+.vscode/
+.idea/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
