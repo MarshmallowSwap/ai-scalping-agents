@@ -1,0 +1,24 @@
+﻿Avvio mcp-remote e connessione al server Co-Invest...
+Connesso al server MCP.
+
+Tool disponibili: 58
+
+- analyze_market
+  Bring Liquid's powerful market intelligence into the conversation: real-time prices, funding, and proprietary positioning insights in one place. PRIMARY TOOL for any question about a specific tradeabl
+
+- get_positioning_pulse
+  Uncover crowded trades and contrasting trader views with a market-wide cohort-bias snapshot across Liquid markets with positioning data coverage. Returns the most one-sided assets split into long-heav
+
+- market_picks
+  Bring market catalysts to life with 5 news-driven trade picks (at least 1; fewer only when fewer catalysts qualify) as interactive cards. ONLY call this as the final step of the /markets command flow,
+
+- analyze_markets_batch
+  Put 2û10 markets side-by-side for a rich comparison of price, funding, and positioning. Use when the user asks about more than one asset at once (e.g. 'how are BTC, ETH, and SOL looking?', 'compare go
+
+- suggest_trade
+  When the user has a concrete, data-backed directional trade idea, call analyze_market first; do not call for a purely informational query, and 'no trade' is a valid position. Call get_portfolio first 
+
+- suggest_order
+  Prepare a paper-only order review link in Liquid after checking market and account context. This tool never places an order and cannot choose live mode. Paper trading mode must already be active for y
+
+- execute_order

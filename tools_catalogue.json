@@ -1,0 +1,292 @@
+[
+  {
+    "name": "analyze_market",
+    "description": "Bring Liquid's powerful market intelligence into the conversation: real-time prices, funding, and proprietary positioning insights in one place. PRIMARY TOOL for any question about a specific tradeable asset on Liquid. Use this whenever the user asks about an asset's price, outlook, positioning, sentiment, what an asset is doing, how traders are positioned, or wants analysis on a particular market. Liquid covers equities (TSLA, AAPL, NVDA), commodities (GOLD, SILVER, CL for WTI crude, BRENT for Brent crude), indices (SP500), crypto (BTC, ETH, SOL), and more. If the result requires an asset choice, ask the user which candidate they mean and retry with its exact symbol. Returns real-time Liquid price, funding, OI, and positioning data, including the smart-money (profitable traders) vs losing-crowd long/short split when available. Do NOT use search_markets when the user asks about a specific known asset — use analyze_market instead. After presenting the analysis, offer in your own reply to turn it into a trade (a paper trade when paper trading is active; otherwise mention they can paper trade risk-free with $10k simulated funds, or deposit and trade for real). Do NOT call suggest_trade until the user says yes.",
+    "input_schema": null
+  },
+  {
+    "name": "get_positioning_pulse",
+    "description": "Uncover crowded trades and contrasting trader views with a market-wide cohort-bias snapshot across Liquid markets with positioning data coverage. Returns the most one-sided assets split into long-heavy and short-heavy buckets, with notional, position count, and the smart-money vs losing-crowd split (profitable vs unprofitable pnl cohorts) — a wide gap where winners fade the crowd is the strongest contrarian signal. Use in the /markets flow BEFORE market_picks to ground picks in actual positioning, or when the user asks 'what's crowded?', 'what are traders long/short?', or wants a contrarian setup. Do NOT call for single-asset queries — use analyze_market instead.",
+    "input_schema": null
+  },
+  {
+    "name": "market_picks",
+    "description": "Bring market catalysts to life with 5 news-driven trade picks (at least 1; fewer only when fewer catalysts qualify) as interactive cards. ONLY call this as the final step of the /markets command flow, after calling get_news(), search_markets(), and get_positioning_pulse(). Do NOT call for single-asset queries — use analyze_market instead. Each pick: asset, direction, news catalyst, reasoning — weight reasoning with the positioning pulse (contrarian vs. crowded) and the unusual-activity section from get_news. After presenting the picks, ask in your own reply which pick the user would like to trade (paper trade when paper trading is active; otherwise mention they can paper trade risk-free with $10k simulated funds, or deposit and trade for real). Do NOT call suggest_trade until the user chooses one.",
+    "input_schema": null
+  },
+  {
+    "name": "analyze_markets_batch",
+    "description": "Put 2–10 markets side-by-side for a rich comparison of price, funding, and positioning. Use when the user asks about more than one asset at once (e.g. 'how are BTC, ETH, and SOL looking?', 'compare gold to oil', 'show me my watchlist'). Returns a short text summary plus a multi-market widget. For deep single-asset analysis still use analyze_market.",
+    "input_schema": null
+  },
+  {
+    "name": "suggest_trade",
+    "description": "When the user has a concrete, data-backed directional trade idea, call analyze_market first; do not call for a purely informational query, and 'no trade' is a valid position. Call get_portfolio first to check available_balance and current account mode. Require asset, side, leverage, orderType, size and reasoning; TP/SL are optional, and limit orders may set timeInForce (gtc default, ioc or alo/post-only). Size is notional exposure, not collateral: required collateral is size / leverage. Suggest only when available_balance covers that amount; for example, a $600 order at 3x needs $200 collateral and is valid with $300 available. Otherwise explain that the user needs to fund the account first. After reviewing the exact returned terms and execution mode, present those terms in chat and obtain the user's explicit confirmation of that unchanged action. Then call execute_order mapping asset→symbol, long/short→buy/sell, orderType→type, limitPrice→price and takeProfit/stopLoss→tp/sl; copy returned notional size, leverage, requestedLeverage, timeInForce, reasoning, executionMode and aiAttribution verbatim. Do not pass proposal-only sizeBasis, displayName, requestedSize, sizingNote, markPrice, icons, links or status. A proposal is not an order or fill. Changed terms require a new proposal and confirmation.",
+    "input_schema": null
+  },
+  {
+    "name": "suggest_order",
+    "description": "Prepare a paper-only order review link in Liquid after checking market and account context. This tool never places an order and cannot choose live mode. Paper trading mode must already be active for your wallet. Review the prefilled order in Liquid and confirm paper mode before placing it. Size is notional USD; sizeBasis preserves the user’s intended collateral or notional when leverage changes.",
+    "input_schema": null
+  },
+  {
+    "name": "execute_order",
+    "description": "Execute one previously reviewed order only after the user explicitly confirms its exact returned terms in chat. Send confirmed=true and the unchanged executionMode. Map only asset→symbol, long/short→buy/sell, orderType→type, limitPrice→price and takeProfit/stopLoss→tp/sl; copy exact size, leverage, requestedLeverage, timeInForce, reasoning and aiAttribution from the proposal. Use only executor fields: executionMode, symbol, side, size, type, price, timeInForce, leverage, requestedLeverage, tp, sl, reasoning, aiAttribution, idempotencyKey and confirmed. Exclude proposal/display fields. Reuse one stable opaque idempotencyKey for this exact action and any safe reconciliation retry; never change it to bypass an uncertain result. Changed terms require a fresh proposal, confirmation and action key. Do not claim a fill unless the returned outcome says filled.",
+    "input_schema": null
+  },
+  {
+    "name": "modify_position",
+    "description": "Call get_portfolio first for the existing position's current side, size and liquidation price, then prepare a TP/SL change proposal. Review the exact returned action, levels, position side, execution mode and account; present them in chat and obtain explicit confirmation of that unchanged change. Then call execute_tpsl with the proposal's asset→symbol, takeProfit→tp and stopLoss→sl mappings, plus exact action, removeTP, removeSL, positionSide, executionMode and reasoning. Preserve explicit removal flags and do not infer a removal from an omitted level. This tool does not close a position. A proposal is not an applied change; changed terms — including a paper/live mode switch since the proposal was prepared — require a new proposal and confirmation.",
+    "input_schema": null
+  },
+  {
+    "name": "execute_tpsl",
+    "description": "Apply a previously reviewed TP/SL change only after the user explicitly confirms the exact action and terms in chat. Send confirmed=true and copy the exact symbol, tp, sl, action, removeTP, removeSL, positionSide, executionMode and reasoning from the matching modify_position proposal. Preserve explicit removal flags and position side; do not infer omitted values. If the connector's paper/live mode has changed since the proposal was prepared, this is rejected — request a fresh modify_position proposal for the current mode. Do not use this tool to close a position. Report the returned outcome accurately.",
+    "input_schema": null
+  },
+  {
+    "name": "close_position",
+    "description": "Call first with confirmed=false or omitted to preview a close. Present the exact previewed symbol, quantity and full or partial-close scope in chat and obtain explicit confirmation. Then call again with confirmed=true and the same symbol. If the preview returns an exact coin-unit size, send that size (not USD and not percent); otherwise repeat the exact previewed percent. If a fresh portfolio read shows a material state change since preview, create a fresh preview and obtain confirmation again. Do not change or expand the previewed close. A preview does not close the position; check the returned outcome and portfolio before claiming it closed.",
+    "input_schema": null
+  },
+  {
+    "name": "close_positions_batch",
+    "description": "Call first with confirmed=false or omitted to preview the selected closes. Present each exact previewed symbol, quantity and full or partial-close scope, then obtain explicit confirmation. On confirmation send the exact explicit selection: use each previewed symbol and, for a partial close, prefer its returned resolvedSize in coin units; otherwise repeat the exact previewed percent. For full closes, send the exact selected symbols list. If a fresh portfolio read shows a material state change since preview, create a fresh preview and obtain confirmation again. Never omit or send an empty selection: that means close every position at execution time and can expand scope after preview. Do not add or alter positions. Verify and report each returned close outcome.",
+    "input_schema": null
+  },
+  {
+    "name": "suggest_trades_batch",
+    "description": "Prepare a data-backed basket only when the user explicitly asks for multiple trades; use suggest_trade for one trade. Call get_portfolio first and verify available_balance covers the sum of each leg's required collateral (size / leverage). A resolved proposal leg contains asset, side (long/short), orderType, limitPrice, size, leverage, requestedLeverage, existingIsCross, timeInForce, takeProfit, stopLoss, reasoning and aiAttribution, plus display and sizing fields. Map only asset→symbol, long/short→buy/sell, orderType→type, limitPrice→price and takeProfit/stopLoss→tp/sl; copy resolved notional size, effective leverage, timeInForce, existingIsCross, reasoning and aiAttribution exactly. The batch executor has no requestedLeverage field, so do not send it. Preserve each leg's aiAttribution verbatim; do not recreate provenance. After reviewing every exact leg, current account and common execution mode, present the basket and obtain explicit confirmation of that unchanged action. Then call execute_orders_batch with only symbol, side, size, type, price, timeInForce, leverage, existingIsCross, tp, sl, reasoning and aiAttribution per leg, plus the returned executionMode, thesis, one stable idempotencyKey and confirmed=true. Exclude proposal-only requestedLeverage, sizeBasis, displayName, iconSrc, requestedSize, sizingNote, markPrice, marginSize, links and status. Do not add, remove or alter legs. A proposal is not an order or fill; changed terms require a new basket proposal and confirmation.",
+    "input_schema": null
+  },
+  {
+    "name": "execute_orders_batch",
+    "description": "Execute only the exact previously reviewed basket after the user explicitly confirms every leg and the unchanged common execution mode in chat. Send confirmed=true. Each order may contain only symbol, side, size, type, price, timeInForce, leverage, existingIsCross, tp, sl, reasoning and aiAttribution copied from its matching returned proposal leg; preserve aiAttribution verbatim and existingIsCross. The top level may contain only executionMode, orders, thesis, idempotencyKey and confirmed. Do not add, omit, reorder or alter legs or spread proposal-only fields. Reuse one stable opaque key for this exact basket and reconciliation retries; never use another key to bypass an uncertain outcome. Changed terms require a new basket proposal, confirmation and key. Report each leg's actual outcome; accepted or pending is not a fill.",
+    "input_schema": null
+  },
+  {
+    "name": "plan_portfolio",
+    "description": "Turn market research and personal preferences into a cohesive multi-trade portfolio plan in one shot. Use this when the user asks for a 'portfolio', 'plan', 'how should I deploy $X', 'suggest a few trades', or any multi-position allocation question — instead of suggesting trades one at a time. PREREQUISITE: BEFORE calling this tool, you MUST collect the user's preferences using the client's built-in interactive question widget (the one rendered for AskUserQuestion / structured Q&A). NEVER ask the questions as a numbered prose list in chat — always use the native question UI. Required answers: (1) risk tolerance (conservative | moderate | aggressive), (2) time horizon (intraday | swing_week | position_long_term), (3) assetClasses as an array of one or more selected asset class strings from crypto, equities, commodities, indices, fx. Do NOT ask about balance — this tool fetches the user's available_balance from their portfolio and assumes they want to deploy all of it. Once you have the three answers, call this tool. It fetches the account balance + news + market-wide positioning + top-trader cohort + unusual volume in parallel (plus upcoming earnings when equities are selected) and returns a research bundle plus sizing rules and synthesis instructions. AFTER this tool returns, you must (a) write a 2–3 sentence thesis, (b) call suggest_trades_batch ONCE with that thesis plus all proposed legs as a basket, then (c) write a 1–2 sentence risk wrap. Do NOT call suggest_trade per-leg — always use suggest_trades_batch for portfolio plans. Do NOT write the trade plan in prose or a markdown table.",
+    "input_schema": null
+  },
+  {
+    "name": "search_markets",
+    "description": "Explore Liquid's multi-asset market lineup with authoritative search and browsing. Use when the user asks what markets are available, wants to browse assets, needs to find a specific market symbol, or asks whether Liquid can trade something. Returns top markets by volume if no query, or filtered results matching a search term. Liquid covers equities, commodities, indices, crypto, and other supported markets. Do NOT use this for single-asset analysis (price, outlook, positioning) — use analyze_market instead. No visual — use show_market_overview for the full dashboard view.",
+    "input_schema": null
+  },
+  {
+    "name": "show_market_overview",
+    "description": "Explore Liquid at a glance with a rich visual market overview dashboard showing its full multi-asset trading surface, including equities, commodities, indices, crypto, and other supported markets. Only call when the user explicitly asks to see all markets, wants the full dashboard view, or asks for a visual overview of market activity. Do NOT use for single-asset queries — use analyze_market instead. Do NOT use for text-only market listings — use search_markets instead.",
+    "input_schema": null
+  },
+  {
+    "name": "show_orderbook",
+    "description": "See liquidity and bid/ask depth clearly with an orderbook widget for a specific asset. Only call when the user explicitly asks to see the order book, bid/ask spread, or market depth for a specific market. Do NOT call for general price or analysis queries — use analyze_market instead.",
+    "input_schema": null
+  },
+  {
+    "name": "show_chart",
+    "description": "Bring price action into focus with a detailed candlestick chart widget for a specific asset. Only call when the user explicitly asks to see a chart, price history, or candlestick view (e.g. 'show me a chart of BTC', 'chart ETH'). Do NOT call for general price or analysis queries — use analyze_market instead, which returns price data as text without needing a visual chart.",
+    "input_schema": null
+  },
+  {
+    "name": "get_technical_indicators",
+    "description": "Explore market momentum, trends, and volatility with the latest technical indicator values (RSI, MACD, SMA/EMA 20/50/200, Bollinger Bands, Stochastic, ATR, rolling VWAP, OBV) for one tradeable market from candle data, returned as structured JSON. Read-only market data; complements analyze_market, which serves broader pre-computed market analysis (price, funding, positioning).",
+    "input_schema": null
+  },
+  {
+    "name": "search_prediction_markets",
+    "description": "Search or browse Liquid prediction markets. Use this for event-style markets, yes/no outcomes, probabilities, or HIP-4 prediction markets. For sports markets, search by match/team names and optionally category, e.g. match='Ecuador Germany', category='World Cup'. Returns user-facing prediction market groups with each bettable outcome's numeric marketID and outcome_id (match markets list both sides, e.g. Mexico outcome_id=0 and England outcome_id=1). Pass that marketID and outcome_id directly to execute_prediction_order or show_prediction_orderbook; do not add a hip4: prefix. Bet on any outcome by buying it; bet against one by buying the opposing outcome.",
+    "input_schema": null
+  },
+  {
+    "name": "show_prediction_orderbook",
+    "description": "Get the orderbook for a HIP-4 prediction market outcome. Use the numeric marketID from search_prediction_markets as market_id with no hip4: prefix. Use the outcome_id from the search row (defaults to 0, the YES/first side).",
+    "input_schema": null
+  },
+  {
+    "name": "view_prediction_positions",
+    "description": "List the user's prediction-market positions, including HIP-4 outcome quantities. Use for questions about prediction bets, YES/NO holdings, or event-market exposure.",
+    "input_schema": null
+  },
+  {
+    "name": "view_prediction_orders",
+    "description": "List prediction-market orders. Use status=open for cancellable resting orders. The returned orderId and provider can be passed to cancel_prediction_order.",
+    "input_schema": null
+  },
+  {
+    "name": "execute_prediction_order",
+    "description": "Preview or place a prediction-market order. Call with confirmed=false or omit confirmed to preview the order. Only call with confirmed=true after the user explicitly confirms the exact prediction order, and copy the executionMode returned by the preview unchanged. Use the numeric marketID and outcome_id shown next to the user's desired outcome in search_prediction_markets, with no hip4: prefix. Always bet by BUYING the outcome the user wants to back. To bet against a team or outcome, buy the opposing outcome from the search results (e.g. to fade Mexico in 'Mexico vs England', buy England's outcome_id) — side=sell only reduces contracts the user already holds and is rejected otherwise. Do not call show_prediction_orderbook just to place a market order; use orderbook only when the user asks for book depth/spread or when choosing a limit price. size is USD notional. Prediction markets have no leverage. Any valid probability strictly between 0 and 1 is allowed. Honor the user's selected outcome; do not refuse or substitute another bet because the odds are low or high.",
+    "input_schema": null
+  },
+  {
+    "name": "close_prediction_position",
+    "description": "Preview or close a prediction-market position fully or partially. Call with confirmed=false or omit confirmed to preview. Only call with confirmed=true after the user explicitly confirms the close, and copy the executionMode returned by the preview unchanged. Omit size to close the full outcome position; provide size (USD notional) to partially close — it is converted to outcome contracts at the execution price (the limit price for limit closes, otherwise the live mark).",
+    "input_schema": null
+  },
+  {
+    "name": "cancel_prediction_order",
+    "description": "Preview or cancel a resting prediction-market order by provider and provider-native order id. Call view_prediction_orders first if the order id is unknown. Omit confirmed to preview; use confirmed=true only after explicit user confirmation, copying the executionMode returned by the preview unchanged.",
+    "input_schema": null
+  },
+  {
+    "name": "view_open_orders",
+    "description": "List the user's currently open orders — includes resting limit orders and position-level trigger orders (TP/SL). Use when the user asks about pending orders, working orders, resting limits, or current TP/SL levels. Do NOT confuse with get_portfolio — this shows ORDERS (pending/resting), not POSITIONS (active holdings). Returns text (no widget) with order id, symbol, side, kind (limit/tp/sl/trigger), size, price or trigger, and flags, followed by a protection-coverage readback for every position with a live TP/SL trigger (a fixed-size leg can stop covering the full position after an add, or after a partial close). The order id can be passed to cancel_order to cancel. Perpetual orders only — HIP-4 prediction-market orders are excluded (they would otherwise render as an unresolvable bare id with a probability shown as a dollar price); use view_prediction_orders for those.",
+    "input_schema": null
+  },
+  {
+    "name": "update_leverage",
+    "description": "No-UI leverage update tool for an existing portfolio position. Do not call this automatically as the first step when the user asks to change leverage. First ask whether they have a custom integer leverage value in mind or whether they want an investigation/recommendation. If the user provides a custom value, call this with targetLeverage and confirmed=false to verify the open position, min/max bounds, and impact before confirmation. If the user asks for investigation, gather the needed account and market context first, then call this with the resulting targetLeverage and confirmed=false before confirmation. After the user explicitly confirms the change, call this again with the same targetLeverage and confirmed=true, or validationPhase='executetime', to execute the Liquid leverage update. When targetLeverage is omitted, this only verifies the position and returns current/min/max context; use that only when the user asks for bounds or context. The tool always re-validates the current position and max leverage before executing.",
+    "input_schema": null
+  },
+  {
+    "name": "cancel_order",
+    "description": "Cancel an open order by its order ID. Call view_open_orders first to get the order ID. Only use for resting/pending orders, not for closing active positions.",
+    "input_schema": null
+  },
+  {
+    "name": "enable_trading",
+    "description": "Help the user get ready to trade with a clear account readiness check and the right setup action for their Liquid account. Use when a trade action says setup is required, when the user asks to enable trading, or after they fund their account. For funded embedded-wallet accounts that are missing the MCP trading key, the widget opens the Liquid re-auth/setup flow to create the right agent key. Liquid uses a non-custodial wallet model: the user stays in control, and trading through this MCP still requires explicit confirmation for state-changing actions.",
+    "input_schema": null
+  },
+  {
+    "name": "get_portfolio",
+    "description": "Read current balances, account mode, positions and TP/SL coverage before preparing a trade or close. For a close, use close_position or close_positions_batch to preview the exact action, then obtain explicit chat confirmation before executing it. A portfolio read alone does not authorize or perform a close. Keep paper and live account modes distinct.",
+    "input_schema": null
+  },
+  {
+    "name": "show_portfolio_chart",
+    "description": "See your portfolio allocation at a glance with a clear visual pie chart by notional value. Only call when the user explicitly asks to see a portfolio chart, allocation breakdown, or visual representation of their positions. Do NOT call for general portfolio/balance queries — use get_portfolio instead, which returns text data.",
+    "input_schema": null
+  },
+  {
+    "name": "leaderboard_data",
+    "description": "Discover standout traders with the Liquid leaderboard. Ranks traders by `metric` (pnl, volume, points, streak) over `duration` (24H, 7D, 30D, all_time) and returns rank, display name, PnL, volume, points, streak, directional bias, and biggest position per trader. Pass `asset` to keep only traders whose biggest position is in that market (e.g. 'BTC', 'xyz:SP500'). points and streak are all-time boards, so duration is ignored for them. Use when the user asks about top traders, best performers this week, highest-volume traders, who holds a given asset, or leaderboard rankings. For a single named trader's standing use leaderboard_rank; for the user's own positions use get_portfolio.",
+    "input_schema": null
+  },
+  {
+    "name": "leaderboard_rank",
+    "description": "Get a focused view of one trader’s leaderboard standing on a given board. `trader` accepts a wallet address, display name, or @handle; omit it to check the authenticated user's own rank. Returns the rank plus PnL, volume, points, streak, bias, and biggest position when the trader is in the top 50, the rank alone for ranks 51-100, and says so when they are unranked. Use when the user asks 'where am I on the leaderboard?', 'what rank is X?', or how a specific trader is doing. Use leaderboard_data for whole-board listings.",
+    "input_schema": null
+  },
+  {
+    "name": "get_transaction_history",
+    "description": "Bring the user's trading and money movement into one clear, newest-first activity timeline: trade fills, deposits, withdrawals, sends/receives, account transfers, and prediction-market trades with human-readable market names. Use when the user asks for their transactions, activity, trade history, past trades, deposit/withdrawal history, or 'what have I done recently'. Do NOT confuse with get_portfolio (current balances and open positions) or view_open_orders (resting orders) — this shows PAST activity. The response's paperMode flag applies only to Trade rows: while paper trading is active they are simulated fills, never real trades, but Deposit/Withdraw/Send/Receive/Transfer rows are always the user's real wallet activity and are never simulated — do not describe them as paper trades. Use the type filter to narrow to just trades, transfers, or prediction activity. Coverage is RECENT history, not all-time: each source contributes its most recent window (Liquid returns roughly the ~2000 most recent trade fills and ledger updates; prediction activity is the order history the backend returns), `total` counts rows in that fetched snapshot, and `offset` pages within it — not through older, unfetched history.",
+    "input_schema": null
+  },
+  {
+    "name": "get_position_history",
+    "description": "Reconstruct the authenticated wallet's recent perpetual position lifecycles from its bounded Hyperliquid fill window. Use for past perpetual positions and their entry/exit execution details; this is recent-fill coverage, not all-time history, and an open result means open at the last observed fill only. For current balances or positions use get_portfolio. For transactions, transfers, deposits, or withdrawals use get_transaction_history. This tool is read-only, follows the current live or paper account mode, and never accepts a wallet or mode override.",
+    "input_schema": null
+  },
+  {
+    "name": "get_news",
+    "description": "Stay on top of market catalysts with curated recent headlines, source links, and a Liquid unusual-activity section (tradeable symbols whose last-hour volume is anomalously high vs. 24h average). Covers equities, commodities, indices, crypto, and macro. Returns text for the model to reference — no visual widget. Use to cross-reference headlines against positioning data, or when the user asks 'what's happening in the markets' or about recent news. Returns curated trading headlines mapped to Liquid's tradeable markets.",
+    "input_schema": null
+  },
+  {
+    "name": "read_link",
+    "description": "Bring shared links into the conversation with rich post details and readable page content. For x.com/twitter.com status URLs, returns the post's author name, handle, verified flag, age, full text, and attached media via the X API (requires TWITTER_BEARER_TOKEN). For any other http(s) page, fetches it and returns title, meta description, and the main text content (truncated). Use when the user pastes a link, asks 'what does this post say', or wants a page summarized. Not for Liquid market or account data — use the dedicated tools for that.",
+    "input_schema": null
+  },
+  {
+    "name": "enable_paper_trading",
+    "description": "Explore trading ideas hands-on with simulated funds: enable paper trading for the current wallet in this MCP connector. Trading actions, positions, open orders, and account balances accessed through this connector use the paper trading simulator; these simulated trades do not use real funds. This paper account is keyed by wallet address on Liquid's shared paper-trading simulator, so it is not scoped to this MCP connector: enabling, disabling, or resetting it here also applies wherever else this wallet trades paper, including other Liquid MCP connectors. It does not switch the Liquid web app into paper mode; orders placed there may use real funds. Call this whenever the user asks to 'paper trade', 'try trades without real money', 'practice', 'simulate', or similar. Idempotent — calling it twice simply keeps paper mode on.",
+    "input_schema": null
+  },
+  {
+    "name": "disable_paper_trading",
+    "description": "Exit paper trading mode for this wallet in this MCP connector and return to live account data. Any permitted live trades use real funds; deployment trading permissions still apply. This paper account is keyed by wallet address on Liquid's shared paper-trading simulator, so it is not scoped to this MCP connector: enabling, disabling, or resetting it here also applies wherever else this wallet trades paper, including other Liquid MCP connectors. It does not switch the Liquid web app into paper mode; orders placed there may use real funds. Call this when the user asks to 'stop paper trading', 'go back to live', 'trade real money', or similar. Idempotent — calling it when paper mode is already off is a no-op.",
+    "input_schema": null
+  },
+  {
+    "name": "reset_paper_account",
+    "description": "Reset the current paper trading account back to its original state: wipes every open position, cancels every open order, clears fills / funding history / leverage overrides, and restores the balance to the default equity (10,000 USD). Only works while paper trading is enabled — refuses to run in live mode to prevent accidents. This paper account is keyed by wallet address on Liquid's shared paper-trading simulator, so it is not scoped to this MCP connector: enabling, disabling, or resetting it here also applies wherever else this wallet trades paper, including other Liquid MCP connectors. It does not switch the Liquid web app into paper mode; orders placed there may use real funds. Use this when the user asks to 'reset my paper account', 'start over', 'give me a fresh 10k', 'wipe my paper trades', or similar. This is destructive and irreversible for the paper account — including any paper positions or orders open on another Liquid MCP connector for the same wallet; there is no confirmation step beyond the user's request.",
+    "input_schema": null
+  },
+  {
+    "name": "paper_trading_status",
+    "description": "Report whether paper trading is currently enabled for this wallet in this MCP connector. This paper account is keyed by wallet address on Liquid's shared paper-trading simulator, so it is not scoped to this MCP connector: enabling, disabling, or resetting it here also applies wherever else this wallet trades paper, including other Liquid MCP connectors. It does not switch the Liquid web app into paper mode; orders placed there may use real funds. Use when the user asks 'am I paper trading?' or you need to disambiguate before executing a trade.",
+    "input_schema": null
+  },
+  {
+    "name": "show_deposit",
+    "description": "Make funding a Liquid account easy with a deposit widget offering multiple ways to get started. Offers credit card via Stripe, credit card via Swapped, Other Apps (Coinbase, MetaMask, etc.), and wallet transfer. The user picks a method in the widget.",
+    "input_schema": null
+  },
+  {
+    "name": "generate_deposit_address",
+    "description": "Returns a crypto deposit address for one token on one chain. Call it only when the user explicitly asks for a deposit address and names both the token and the chain (for example \"give me a USDC deposit address on Arbitrum\"). For general questions about depositing, or when the token or chain is missing, call show_deposit instead. The deposit widget also calls this tool when the user picks a token and chain. Supported tokens: USDC, USDT, BTC, ETH, SOL; other tokens and unsupported chains are refused. Returns { address, chain, direct }. HyperCore resolves to the user's own wallet (direct=true, no bridging); other chains return a Relay bridge address (direct=false).",
+    "input_schema": null
+  },
+  {
+    "name": "create_onramp_session",
+    "description": "INTERNAL: Called by the deposit widget when the user confirms a fiat amount for credit card or Other Apps. Do not call directly. Returns { url }.",
+    "input_schema": null
+  },
+  {
+    "name": "refer",
+    "description": "Make inviting friends easy with the authenticated user's referral link, sharing controls, and referral stats. Called when the user types /refer, or whenever they want to refer someone to Liquid, invite friends, share the app, or ask for a referral link. Returns a widget with copy/share buttons and referral performance summary.",
+    "input_schema": null
+  },
+  {
+    "name": "payment_link",
+    "description": "Generate the signed-in user's payment link — their public Liquid profile URL, where anyone who opens it can sign in to Liquid and send them USDC. Called when the user wants to get paid, asks for a payment link or 'pay me' link, or wants someone to send them money on Liquid. Returns a share card with copy and share buttons. Requires sign-in; the link always points at the user's own profile. The link opens the user's public profile page, which also shows their trading activity.",
+    "input_schema": null
+  },
+  {
+    "name": "deposit_earn",
+    "description": "Deposit USDC into Liquid's Earn vault, a Gauntlet-managed USDC yield vault on Arbitrum. Use when the user asks to deposit into Earn or the vault, or to earn yield on idle USDC. `amount` is the exact USDC to deposit (minimum 1, at most 6 decimals). Deposits use USDC already on Arbitrum; if the user is short there, the signing page offers to move USDC from Hyperliquid first, so do not check or move balances beforehand. This creates a request only: the user opens a Liquid link and approves each transaction there; Co-Invest cannot sign it. Do not say the deposit happened until the status is submitted, and never auto-retry.",
+    "input_schema": null
+  },
+  {
+    "name": "withdraw_earn",
+    "description": "Withdraw (redeem) USDC from Liquid's Earn vault back to the user's Arbitrum wallet. This moves the user's own funds out of the yield vault; it is not a withdrawal off Liquid to an external address. Use when the user asks to withdraw from Earn or the vault, or to redeem their vault position. Pass exactly one of `amount` (exact USDC, at most 6 decimals) or `all: true` (the entire position). This creates a request only: the user opens a Liquid link and approves each transaction there; Co-Invest cannot sign it. Do not say the withdrawal happened until the status is submitted, and never auto-retry. Vault withdrawals can settle after they are submitted.",
+    "input_schema": null
+  },
+  {
+    "name": "_earn_pending_status",
+    "description": "INTERNAL: status of an Earn deposit or withdrawal request, polled by the earn-pending card. Call only with a pending_id returned by deposit_earn or withdraw_earn in this conversation, and only when the user asks for an update; never construct or guess an id. Statuses: awaiting_user, preparing, awaiting_approval, submitting (in progress), submitted (every transaction broadcast; balances update once they confirm, not settled), preparation_failed (no vault transactions were submitted, though a Hyperliquid top-up may already have moved USDC to the user's Arbitrum wallet; the user can ask again). An expired request cannot be resumed.",
+    "input_schema": null
+  },
+  {
+    "name": "get_earn_balance",
+    "description": "Read the user's Earn vault holdings: the USDC settled in Liquid's Gauntlet-managed Earn vault on Arbitrum, any pending (queued) deposit or withdrawal, the total committed, the deposit-lock time if any, and the vault's current APY and TVL. Use when the user asks about their Earn balance, holdings, position, vault, or yield, or whether a deposit or withdrawal landed. Earn holdings are not part of the trading balance get_portfolio reports, and get_transaction_history does not list vault activity. This tool is read-only: it cannot deposit or withdraw (use deposit_earn / withdraw_earn).",
+    "input_schema": null
+  },
+  {
+    "name": "get_staking",
+    "description": "Get a rich view of the user's HYPE staking in one place: delegated and undelegated staking balance, per-validator delegations with predicted APR, commission and lockup, accrued staking rewards, pending unstaking withdrawals, and the highest-APR active validators. Use when the user asks about staking, delegating, validators, staking rewards or APR, or 'how much HYPE am I staking'. Staking balances are separate from the trading balance get_portfolio reports and are never part of trading collateral. This tool is read-only: it cannot stake, unstake or redelegate.",
+    "input_schema": null
+  },
+  {
+    "name": "edit_watchlist",
+    "description": "Keep favorite markets within reach by updating the authenticated user's named watchlists. Call this when the user asks to add, remove, or track a symbol on their watchlist (e.g. \"add HYPE to my watchlist\", \"stop tracking ETH\", \"set my watchlist to BTC and SOL\"). A user can have multiple named lists; the `list` field selects which one to edit (defaults to \"Watchlist\"). `set` replaces the named list's contents with exactly the given symbols, while `add` and `remove` merge against the current contents. `set` with no symbols clears the list. Returns the updated list.",
+    "input_schema": null
+  },
+  {
+    "name": "help",
+    "description": "List Co-Invest's user-facing capabilities grouped by category. Call this when the user asks what you can do, says 'help', sends '/help', or seems unsure how to use the platform.",
+    "input_schema": null
+  },
+  {
+    "name": "enable_automated_trading",
+    "description": "Only save a policy when the user explicitly asks and supplies maxOrderNotional. Store the requested per-order limit and expiry in the verified account's automation policy record. This only saves policy data: it does not start a scheduler, authorize automated orders in this MCP profile, or bypass Main's existing order confirmation flow. The saved policy documents an intended batch limit of five times the per-order limit for clients that use it. Expiry is limited to seven days. A running Computer process may retain its current local policy until its status tool refreshes it.",
+    "input_schema": null
+  },
+  {
+    "name": "disable_automated_trading",
+    "description": "Clear the saved automation policy record for the verified account. This does not change order behavior or cancel accepted orders. A running Computer process may retain its previous local policy until its status tool refreshes it.",
+    "input_schema": null
+  },
+  {
+    "name": "automated_trading_status",
+    "description": "Read the saved automation policy record for the verified account. A missing or expired record is reported as no active saved policy. This reports persisted policy data only; it does not tell whether another Computer process has refreshed its local state or authorize orders in this MCP profile.",
+    "input_schema": null
+  },
+  {
+    "name": "get_account",
+    "description": "Return the public address of the authenticated trading account. This is the trading account address, not a deposit or bridge destination. No credentials or account secrets are returned.",
+    "input_schema": null
+  }
+]
