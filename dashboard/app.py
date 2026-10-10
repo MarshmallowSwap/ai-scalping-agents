@@ -227,9 +227,9 @@ with tab_pos:
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="panel"><div class="panel-title">Quick Actions</div>', unsafe_allow_html=True)
-        if st.button("🔄 Refresh", use_container_width=True):
+        if st.button("🔄 Refresh", width="stretch"):
             st.rerun()
-        if st.button("🔁 Reset Paper Account", use_container_width=True):
+        if st.button("🔁 Reset Paper Account", width="stretch"):
             try:
                 client = runtime.ensure_client()
                 result = runtime.run_sync(client.reset_paper_account())
@@ -239,7 +239,7 @@ with tab_pos:
                 st.error(f"Errore: {e}")
 
         st.markdown('<div class="panel-title" style="margin-top:14px;color:#ff2e63">⚠ KILL SWITCH</div>', unsafe_allow_html=True)
-        if st.button("❌ CHIUDI TUTTE LE POSIZIONI", use_container_width=True):
+        if st.button("❌ CHIUDI TUTTE LE POSIZIONI", width="stretch"):
             try:
                 client = runtime.ensure_client()
                 closed = []
@@ -319,7 +319,7 @@ with tab_chart:
         )
         fig.update_xaxes(gridcolor="rgba(136,146,176,0.1)")
         fig.update_yaxes(gridcolor="rgba(136,146,176,0.1)")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # metriche
         mc = st.columns(4)
@@ -343,11 +343,11 @@ with tab_ctrl:
         st.markdown("</div>", unsafe_allow_html=True)
 
         if runtime.scheduler_running:
-            if st.button("⏹ FERMA SCHEDULER", use_container_width=True):
+            if st.button("⏹ FERMA SCHEDULER", width="stretch"):
                 runtime.stop_scheduler()
                 st.rerun()
         else:
-            if st.button("▶ AVVIA SCHEDULER", use_container_width=True):
+            if st.button("▶ AVVIA SCHEDULER", width="stretch"):
                 cfg = {
                     "symbols": [s.strip().upper() for s in symbols_input.split(",") if s.strip()],
                     "timeframe": timeframe,
@@ -366,12 +366,24 @@ with tab_ctrl:
         st.markdown(f"**Ultimo ciclo:** {runtime.last_cycle_at or '-'}")
         st.markdown("</div>", unsafe_allow_html=True)
 
+        st.markdown('<div class="panel"><div class="panel-title">Journal</div>', unsafe_allow_html=True)
+        if st.button("🔄 Sync Journal", width="stretch"):
+            try:
+                from src.tools.journal_sync import sync_with_client
+                client = runtime.ensure_client()
+                result = runtime.run_sync(sync_with_client(client), timeout=30)
+                st.success(f"Parsed: {result['parsed']}  Added: {result['added']}")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Errore sync: {e}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
         st.markdown('<div class="panel"><div class="panel-title">Manual Trade</div>', unsafe_allow_html=True)
         ms = st.selectbox("Symbol", ["BTC", "ETH", "SOL"], key="m_sym")
         mside = st.selectbox("Side", ["long", "short"], key="m_side")
         msize = st.number_input("Size ($)", min_value=10.0, max_value=500.0, value=50.0, key="m_size")
         mlev = st.number_input("Leverage", min_value=1, max_value=10, value=3, key="m_lev")
-        if st.button("📤 Proponi (suggest)", use_container_width=True):
+        if st.button("📤 Proponi (suggest)", width="stretch"):
             try:
                 client = runtime.ensure_client()
                 res = runtime.run_sync(client.suggest_trade(
@@ -423,12 +435,12 @@ with tab_perf:
             )
             fig.update_xaxes(gridcolor="rgba(136,146,176,0.1)")
             fig.update_yaxes(gridcolor="rgba(136,146,176,0.1)")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # Ultimi trade
         st.markdown("### Ultimi eventi")
         recent = journal.tail(20).iloc[::-1]
-        st.dataframe(recent, use_container_width=True)
+        st.dataframe(recent, width="stretch")
 
 
 # ---- LOG ----
